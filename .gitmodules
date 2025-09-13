@@ -1,0 +1,9 @@
+[submodule "services/service-client"]
+	path = services/service-client
+	url = https://github.com/kuetcheal/service_client.git
+[submodule "services/service-produit"]
+	path = services/service-produit
+	url = https://github.com/kuetcheal/service_produit.git
+[submodule "services/service-commande"]
+	path = services/service-commande
+	url = https://github.com/kuetcheal/service_commande.git

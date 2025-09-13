@@ -1,0 +1,253 @@
+version: '3.8'
+
+services:
+  # === INFRASTRUCTURE ===
+  
+  # MySQL pour service-client
+  mysql-client:
+    image: mysql:8.0
+    container_name: mysql_client
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: service_client
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data_client:/var/lib/mysql
+      - ./services/service-client/ops/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # MySQL pour service-produit
+  mysql-produit:
+    image: mysql:8.0
+    container_name: mysql_produit
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: service_produit
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data_produit:/var/lib/mysql
+      - ./services/service-produit/ops/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # MySQL pour service-commande
+  mysql-commande:
+    image: mysql:8.0
+    container_name: mysql_commande
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: service_commande
+    ports:
+      - "3309:3306"
+    volumes:
+      - mysql_data_commande:/var/lib/mysql
+      - ./services/service-commande/ops/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"                    # AMQP
+      - "15672:15672"                  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # PhpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: phpmyadmin_mspr
+    ports:
+      - "8082:80"
+    environment:
+      PMA_HOSTS: mysql_client,mysql_produit,mysql_commande
+      PMA_PORTS: 3306,3306,3306
+      PMA_ARBITRARY: 1
+    depends_on:
+      mysql-client:
+        condition: service_healthy
+      mysql-produit:
+        condition: service_healthy
+      mysql-commande:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # === MICROSERVICES ===
+
+  # Service Client
+  service-client:
+    build: ./services/service-client
+    container_name: service_client
+    depends_on:
+      mysql-client:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql_client:3306/service_client?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      SERVER_PORT: 8074
+      JWT_SECRET: "mYmvI1eMKEhT8/LciNCcJqyqSg9XKzTuNNmemn0fAnA="
+      MANAGEMENT_SERVER_PORT: 8081
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,prometheus,metrics
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+    ports:
+      - "8074:8074"                    # API
+      - "8081:8081"                    # Actuator
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # Service Produit
+  service-produit:
+    build: ./services/service-produit
+    container_name: service_produit
+    depends_on:
+      mysql-produit:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql_produit:3306/service_produit?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      SERVER_PORT: 8075
+      JWT_SECRET: "mYmvI1eMKEhT8/LciNCcJqyqSg9XKzTuNNmemn0fAnA="
+      MANAGEMENT_SERVER_PORT: 8082
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,prometheus,metrics
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+    ports:
+      - "8075:8075"                    # API
+      - "8082:8082"                    # Actuator
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # Service Commande
+  service-commande:
+    build: ./services/service-commande
+    container_name: service_commande
+    depends_on:
+      mysql-commande:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql_commande:3306/service_commande?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      SERVER_PORT: 8076
+      JWT_SECRET: "mYmvI1eMKEhT8/LciNCcJqyqSg9XKzTuNNmemn0fAnA="
+      MANAGEMENT_SERVER_PORT: 8083
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,prometheus,metrics
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+    ports:
+      - "8076:8076"                    # API
+      - "8083:8083"                    # Actuator
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # === MONITORING ===
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus_mspr
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+    depends_on:
+      - service-client
+      - service-produit
+      - service-commande
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana_mspr
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks: [mspr-net]
+
+  # Alertmanager
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager_mspr
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks: [mspr-net]
+
+volumes:
+  mysql_data_client:
+  mysql_data_produit:
+  mysql_data_commande:
+  rabbitmq_data:
+
+networks:
+  mspr-net:
+    driver: bridge
