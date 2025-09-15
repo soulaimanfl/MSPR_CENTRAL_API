@@ -189,6 +189,25 @@ services:
     restart: unless-stopped
     networks: [mspr-net]
 
+  # === FRONTEND ===
+
+  # Frontend React
+  frontend:
+    build: ./frontend
+    container_name: webshop_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_CLIENT_URL=http://localhost:8074
+      - VITE_API_PRODUIT_URL=http://localhost:8075
+      - VITE_API_COMMANDE_URL=http://localhost:8076
+    depends_on:
+      - service-client
+      - service-produit
+      - service-commande
+    restart: unless-stopped
+    networks: [mspr-net]
+
   # === MONITORING ===
 
   # Prometheus
