@@ -7,3 +7,6 @@
 [submodule "services/service-commande"]
 	path = services/service-commande
 	url = https://github.com/kuetcheal/service_commande.git
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/kuetcheal/webshop_mspr.git
