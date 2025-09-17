@@ -75,6 +75,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -89,15 +91,30 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Debug - List directory structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Root directory contents ==="
+          ls -la
+          echo "=== Services directory contents ==="
+          ls -la services/
+          echo "=== Service-client directory contents ==="
+          ls -la services/service-client/
+
       - name: Build and test service-client
         run: |
           cd services/service-client
+          echo "=== Current directory after cd ==="
+          pwd
+          echo "=== pom.xml exists? ==="
+          ls -la pom.xml
           mvn clean test -Dspring.profiles.active=test
           mvn package -DskipTests
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
-          SPRING_DATASOURCE_PASSWORD: 
+          SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
 
       - name: Build Docker image for service-client
@@ -126,6 +143,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -140,15 +159,26 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Debug - List directory structure for produit
+        run: |
+          echo "=== Services directory contents ==="
+          ls -la services/
+          echo "=== Service-produit directory contents ==="
+          ls -la services/service-produit/
+
       - name: Build and test service-produit
         run: |
           cd services/service-produit
+          echo "=== Current directory after cd ==="
+          pwd
+          echo "=== pom.xml exists? ==="
+          ls -la pom.xml
           mvn clean test -Dspring.profiles.active=test
           mvn package -DskipTests
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
-          SPRING_DATASOURCE_PASSWORD: 
+          SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
 
       - name: Build Docker image for service-produit
@@ -177,6 +207,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -191,15 +223,26 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Debug - List directory structure for commande
+        run: |
+          echo "=== Services directory contents ==="
+          ls -la services/
+          echo "=== Service-commande directory contents ==="
+          ls -la services/service-commande/
+
       - name: Build and test service-commande
         run: |
           cd services/service-commande
+          echo "=== Current directory after cd ==="
+          pwd
+          echo "=== pom.xml exists? ==="
+          ls -la pom.xml
           mvn clean test -Dspring.profiles.active=test
           mvn package -DskipTests
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
-          SPRING_DATASOURCE_PASSWORD: 
+          SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
 
       - name: Build Docker image for service-commande
@@ -228,6 +271,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
