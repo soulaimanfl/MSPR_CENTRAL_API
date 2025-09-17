@@ -92,8 +92,13 @@ jobs:
       - name: Build and test service-client
         run: |
           cd services/service-client
-          mvn clean test
+          mvn clean test -Dspring.profiles.active=test
           mvn package -DskipTests
+        env:
+          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
+          SPRING_DATASOURCE_USERNAME: sa
+          SPRING_DATASOURCE_PASSWORD: 
+          JWT_SECRET: test-secret-key
 
       - name: Build Docker image for service-client
         run: |
@@ -138,8 +143,13 @@ jobs:
       - name: Build and test service-produit
         run: |
           cd services/service-produit
-          mvn clean test
+          mvn clean test -Dspring.profiles.active=test
           mvn package -DskipTests
+        env:
+          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
+          SPRING_DATASOURCE_USERNAME: sa
+          SPRING_DATASOURCE_PASSWORD: 
+          JWT_SECRET: test-secret-key
 
       - name: Build Docker image for service-produit
         run: |
@@ -184,8 +194,13 @@ jobs:
       - name: Build and test service-commande
         run: |
           cd services/service-commande
-          mvn clean test
+          mvn clean test -Dspring.profiles.active=test
           mvn package -DskipTests
+        env:
+          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
+          SPRING_DATASOURCE_USERNAME: sa
+          SPRING_DATASOURCE_PASSWORD: 
+          JWT_SECRET: test-secret-key
 
       - name: Build Docker image for service-commande
         run: |
@@ -219,7 +234,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install dependencies
         run: |
