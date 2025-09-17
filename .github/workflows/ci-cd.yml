@@ -97,14 +97,35 @@ jobs:
           pwd
           echo "=== Root directory contents ==="
           ls -la
+          echo "=== Find all pom.xml files ==="
+          find . -name "pom.xml" -type f
           echo "=== Services directory contents ==="
-          ls -la services/
+          ls -la services/ || echo "Services directory not found"
           echo "=== Service-client directory contents ==="
-          ls -la services/service-client/
+          ls -la services/service-client/ || echo "Service-client directory not found"
+          echo "=== Check if services exist ==="
+          ls -la | grep -i service || echo "No service directories found"
 
       - name: Build and test service-client
         run: |
-          cd services/service-client
+          echo "=== Finding service-client directory ==="
+          find . -name "service-client" -type d
+          echo "=== Finding pom.xml in service-client ==="
+          find . -path "*/service-client/pom.xml" -type f
+          
+          # Try different possible paths
+          if [ -d "services/service-client" ]; then
+            echo "Using services/service-client"
+            cd services/service-client
+          elif [ -d "service-client" ]; then
+            echo "Using service-client"
+            cd service-client
+          else
+            echo "Service-client directory not found, listing all directories:"
+            find . -type d -name "*client*" -o -name "*service*"
+            exit 1
+          fi
+          
           echo "=== Current directory after cd ==="
           pwd
           echo "=== pom.xml exists? ==="
@@ -168,7 +189,24 @@ jobs:
 
       - name: Build and test service-produit
         run: |
-          cd services/service-produit
+          echo "=== Finding service-produit directory ==="
+          find . -name "service-produit" -type d
+          echo "=== Finding pom.xml in service-produit ==="
+          find . -path "*/service-produit/pom.xml" -type f
+          
+          # Try different possible paths
+          if [ -d "services/service-produit" ]; then
+            echo "Using services/service-produit"
+            cd services/service-produit
+          elif [ -d "service-produit" ]; then
+            echo "Using service-produit"
+            cd service-produit
+          else
+            echo "Service-produit directory not found, listing all directories:"
+            find . -type d -name "*produit*" -o -name "*service*"
+            exit 1
+          fi
+          
           echo "=== Current directory after cd ==="
           pwd
           echo "=== pom.xml exists? ==="
@@ -232,7 +270,24 @@ jobs:
 
       - name: Build and test service-commande
         run: |
-          cd services/service-commande
+          echo "=== Finding service-commande directory ==="
+          find . -name "service-commande" -type d
+          echo "=== Finding pom.xml in service-commande ==="
+          find . -path "*/service-commande/pom.xml" -type f
+          
+          # Try different possible paths
+          if [ -d "services/service-commande" ]; then
+            echo "Using services/service-commande"
+            cd services/service-commande
+          elif [ -d "service-commande" ]; then
+            echo "Using service-commande"
+            cd service-commande
+          else
+            echo "Service-commande directory not found, listing all directories:"
+            find . -type d -name "*commande*" -o -name "*service*"
+            exit 1
+          fi
+          
           echo "=== Current directory after cd ==="
           pwd
           echo "=== pom.xml exists? ==="
