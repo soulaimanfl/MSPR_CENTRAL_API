@@ -88,7 +88,7 @@ services:
     image: phpmyadmin:5
     container_name: phpmyadmin_mspr
     ports:
-      - "8082:80"
+      - "8085:80"
     environment:
       PMA_HOSTS: mysql_client,mysql_produit,mysql_commande
       PMA_PORTS: 3306,3306,3306
@@ -193,14 +193,15 @@ services:
 
   # Frontend React
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL_CLIENT: http://localhost:8074/api
+        VITE_API_BASE_URL_PRODUIT: http://localhost:8075/api
+        VITE_API_BASE_URL_COMMANDE: http://localhost:8076/api
     container_name: webshop_frontend
     ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_CLIENT_URL=http://localhost:8074
-      - VITE_API_PRODUIT_URL=http://localhost:8075
-      - VITE_API_COMMANDE_URL=http://localhost:8076
+      - "3001:3000"
     depends_on:
       - service-client
       - service-produit

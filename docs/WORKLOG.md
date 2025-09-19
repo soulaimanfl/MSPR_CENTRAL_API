@@ -65,6 +65,36 @@ Date: 2025-09-15
 - Mettre à jour sous-modules: `git submodule update --remote`
 
 ## Prochaines étapes
-- Implémenter intégralement services Produit/Commande (domaines + endpoints + events).
-- Brancher le frontend aux vraies APIs (produits, panier, commandes).
-- Ajouter tests d’intégration inter-services (Testcontainers + RabbitMQ).
+- ✅ Implémenter intégralement services Produit/Commande (domaines + endpoints + events).
+- ✅ Brancher le frontend aux vraies APIs (produits, panier, commandes).
+- ✅ Ajouter tests d'intégration inter-services (Testcontainers + RabbitMQ).
+- ✅ Configuration complète du monitoring Prometheus/Grafana.
+- ✅ Intégration frontend avec authentification JWT.
+- ✅ Ajout d'images aux produits de test.
+- ✅ Documentation complète du projet.
+
+## Nouvelles fonctionnalités ajoutées
+
+### Frontend React (Port 3001)
+- **Authentification** : Page de connexion avec JWT
+- **Catalogue produits** : Affichage avec images et gestion du stock
+- **Panier** : Ajout/suppression d'articles avec calcul du total
+- **Responsive** : Interface adaptée mobile/tablet/desktop
+- **Gestion d'erreurs** : Redirection automatique en cas d'erreur 401
+
+### Monitoring complet
+- **Prometheus** : Collecte de métriques JVM, HTTP, custom
+- **Grafana** : Dashboards de visualisation des métriques
+- **Alertmanager** : Gestion des alertes et notifications
+- **Métriques exposées** : Actuator endpoints sur tous les services
+
+### Données de test
+- **10 produits** : Avec images Unsplash et descriptions complètes
+- **Utilisateur admin** : admin/admin pour les tests
+- **Base de données** : Données pré-remplies pour démonstration
+
+### CI/CD amélioré
+- **Pipeline unifié** : Build/test/déploy de tous les services
+- **Tests automatisés** : Java (Maven) + Node.js (npm)
+- **Docker multi-stage** : Optimisation des images
+- **Gestion des sous-modules** : Mise à jour automatique
