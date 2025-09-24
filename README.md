@@ -102,3 +102,6 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --buil
 
 ### Mode PROD (build complet)
 docker compose -f docker-compose.yml up -d --build
+
+
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImlhdCI6MTc1ODczMDUzMywiZXhwIjoxNzYyMzMwNTMzLCJyb2xlcyI6WyJST0xFX0FETUlOIl19._5WgbZogLTdVa3JTkgyVTfN0DnqXj2bwzqyUG3PZ-WU
