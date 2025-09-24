@@ -94,3 +94,11 @@ Le pipeline central détecte automatiquement les changements dans chaque service
 - [Guide de développement](docs/development.md)
 - [Architecture détaillée](docs/architecture.md)
 - [Guide de déploiement](docs/deployment.md)
+
+
+
+###  👉 Mets bien en place ton docker-compose.override.yml pour le Mode DEV (hot reload)
+docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
+
+### Mode PROD (build complet)
+docker compose -f docker-compose.yml up -d --build
