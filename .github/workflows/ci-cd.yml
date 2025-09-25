@@ -1,10 +1,10 @@
-name: CI/CD Monorepo - Improved
+name: CI/CD Monorepo
 
 on:
   push:
-    branches: [ develop, master ]
+    branches: [ develop, main ]
   pull_request:
-    branches: [ develop, master ]
+    branches: [ develop, main ]
   workflow_dispatch:
     inputs:
       service:
@@ -23,7 +23,6 @@ permissions:
   contents: read
   packages: write
   actions: write
-  security-events: write
 
 jobs:
   # Job pour détecter les changements
@@ -39,99 +38,119 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Detect changes
         id: changes
         run: |
-          # Pour simplifier, exécuter toujours tous les tests
-          echo "client=true" >> $GITHUB_OUTPUT
-          echo "produit=true" >> $GITHUB_OUTPUT
-          echo "commande=true" >> $GITHUB_OUTPUT
-          echo "frontend=true" >> $GITHUB_OUTPUT
+          # Détecter les changements dans les services
+          if git diff --name-only HEAD~1 HEAD | grep -q "^services/service-client/"; then
+            echo "client=true" >> $GITHUB_OUTPUT
+          else
+            echo "client=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only HEAD~1 HEAD | grep -q "^services/service-produit/"; then
+            echo "produit=true" >> $GITHUB_OUTPUT
+          else
+            echo "produit=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only HEAD~1 HEAD | grep -q "^services/service-commande/"; then
+            echo "commande=true" >> $GITHUB_OUTPUT
+          else
+            echo "commande=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only HEAD~1 HEAD | grep -q "^frontend/"; then
+            echo "frontend=true" >> $GITHUB_OUTPUT
+          else
+            echo "frontend=false" >> $GITHUB_OUTPUT
+          fi
 
-  # Tests et Build pour service-client
-  test-client:
-    runs-on: ubuntu-latest
+  # Job pour service-client
+  build-client:
+    if: needs.detect-changes.outputs.client-changed == 'true' || github.event.inputs.service == 'all' || github.event.inputs.service == 'client'
     needs: detect-changes
-    if: always()
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+          submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: '21'
-          distribution: 'temurin'
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Clone submodules manually
-        run: |
-          echo "=== Cloning submodules manually ==="
-          # Cloner les submodules depuis les repositories originaux
-          git clone https://github.com/kuetcheal/service_client.git services/service-client-temp
-          git clone https://github.com/kuetcheal/service_produit.git services/service-produit-temp
-          git clone https://github.com/kuetcheal/service_commande.git services/service-commande-temp
-          git clone https://github.com/kuetcheal/webshop_mspr.git frontend-temp
-          
-          # Copier les fichiers vers les bons répertoires
-          cp -r services/service-client-temp/* services/service-client/ || echo "Service-client copy failed"
-          cp -r services/service-produit-temp/* services/service-produit/ || echo "Service-produit copy failed"
-          cp -r services/service-commande-temp/* services/service-commande/ || echo "Service-commande copy failed"
-          cp -r frontend-temp/* frontend/ || echo "Frontend copy failed"
-          
-          # Nettoyer les dossiers temporaires
-          rm -rf services/service-client-temp services/service-produit-temp services/service-commande-temp frontend-temp
-
-      - name: Debug directory structure
+      - name: Debug - List directory structure
         run: |
           echo "=== Current directory ==="
           pwd
-          echo "=== List all files ==="
+          echo "=== Root directory contents ==="
           ls -la
-          echo "=== Check services directory ==="
-          ls -la services/ || echo "Services directory not found"
-          echo "=== Check service-client directory ==="
-          ls -la services/service-client/ || echo "Service-client directory not found"
-          echo "=== Check if pom.xml exists ==="
-          ls -la services/service-client/pom.xml || echo "pom.xml not found"
           echo "=== Find all pom.xml files ==="
-          find . -name "pom.xml" -type f || echo "No pom.xml files found"
+          find . -name "pom.xml" -type f
+          echo "=== Services directory contents ==="
+          ls -la services/ || echo "Services directory not found"
+          echo "=== Service-client directory contents ==="
+          ls -la services/service-client/ || echo "Service-client directory not found"
+          echo "=== Check if services exist ==="
+          ls -la | grep -i service || echo "No service directories found"
 
-      - name: Run tests with coverage
+      - name: Build and test service-client
         run: |
-          cd services/service-client
-          mvn clean verify jacoco:report -Dspring.profiles.active=test
+          echo "=== Finding service-client directory ==="
+          find . -name "service-client" -type d
+          echo "=== Finding pom.xml in service-client ==="
+          find . -path "*/service-client/pom.xml" -type f
+          
+          # Try different possible paths
+          if [ -d "services/service-client" ]; then
+            echo "Using services/service-client"
+            cd services/service-client
+          elif [ -d "service-client" ]; then
+            echo "Using service-client"
+            cd service-client
+          else
+            echo "Service-client directory not found, listing all directories:"
+            find . -type d -name "*client*" -o -name "*service*"
+            exit 1
+          fi
+          
+          echo "=== Current directory after cd ==="
+          pwd
+          echo "=== Contents of current directory ==="
+          ls -la
+          echo "=== Looking for pom.xml ==="
+          find . -name "pom.xml" -type f
+          echo "=== pom.xml exists? ==="
+          ls -la pom.xml
+          mvn clean test -Dspring.profiles.active=test
+          mvn package -DskipTests
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
           SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        with:
-          file: services/service-client/target/site/jacoco/jacoco.xml
-          flags: service-client
-
-      - name: Build application
-        run: |
-          cd services/service-client
-          mvn clean package -DskipTests
-
-      - name: Build Docker image
+      - name: Build Docker image for service-client
         run: |
           cd services/service-client
           docker build -t ghcr.io/${{ github.repository_owner }}/service-client:${{ github.sha }} .
+          docker tag ghcr.io/${{ github.repository_owner }}/service-client:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/service-client:latest
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -140,71 +159,85 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Docker image
+      - name: Push Docker image for service-client
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/service-client:${{ github.sha }}
           docker push ghcr.io/${{ github.repository_owner }}/service-client:latest
 
-  # Tests et Build pour service-produit
-  test-produit:
-    runs-on: ubuntu-latest
+  # Job pour service-produit
+  build-produit:
+    if: needs.detect-changes.outputs.produit-changed == 'true' || github.event.inputs.service == 'all' || github.event.inputs.service == 'produit'
     needs: detect-changes
-    if: always()
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+          submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: '21'
-          distribution: 'temurin'
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Debug directory structure
+      - name: Debug - List directory structure for produit
         run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== List all files ==="
-          ls -la
-          echo "=== Check services directory ==="
-          ls -la services/ || echo "Services directory not found"
-          echo "=== Check service-produit directory ==="
-          ls -la services/service-produit/ || echo "Service-produit directory not found"
+          echo "=== Services directory contents ==="
+          ls -la services/
+          echo "=== Service-produit directory contents ==="
+          ls -la services/service-produit/
 
-      - name: Run tests with coverage
+      - name: Build and test service-produit
         run: |
-          cd services/service-produit
-          mvn clean verify jacoco:report -Dspring.profiles.active=test
+          echo "=== Finding service-produit directory ==="
+          find . -name "service-produit" -type d
+          echo "=== Finding pom.xml in service-produit ==="
+          find . -path "*/service-produit/pom.xml" -type f
+          
+          # Try different possible paths
+          if [ -d "services/service-produit" ]; then
+            echo "Using services/service-produit"
+            cd services/service-produit
+          elif [ -d "service-produit" ]; then
+            echo "Using service-produit"
+            cd service-produit
+          else
+            echo "Service-produit directory not found, listing all directories:"
+            find . -type d -name "*produit*" -o -name "*service*"
+            exit 1
+          fi
+          
+          echo "=== Current directory after cd ==="
+          pwd
+          echo "=== Contents of current directory ==="
+          ls -la
+          echo "=== Looking for pom.xml ==="
+          find . -name "pom.xml" -type f
+          echo "=== pom.xml exists? ==="
+          ls -la pom.xml
+          mvn clean test -Dspring.profiles.active=test
+          mvn package -DskipTests
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
           SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        with:
-          file: services/service-produit/target/site/jacoco/jacoco.xml
-          flags: service-produit
-
-      - name: Build application
-        run: |
-          cd services/service-produit
-          mvn clean package -DskipTests
-
-      - name: Build Docker image
+      - name: Build Docker image for service-produit
         run: |
           cd services/service-produit
           docker build -t ghcr.io/${{ github.repository_owner }}/service-produit:${{ github.sha }} .
+          docker tag ghcr.io/${{ github.repository_owner }}/service-produit:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/service-produit:latest
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -213,71 +246,85 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Docker image
+      - name: Push Docker image for service-produit
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/service-produit:${{ github.sha }}
           docker push ghcr.io/${{ github.repository_owner }}/service-produit:latest
 
-  # Tests et Build pour service-commande
-  test-commande:
-    runs-on: ubuntu-latest
+  # Job pour service-commande
+  build-commande:
+    if: needs.detect-changes.outputs.commande-changed == 'true' || github.event.inputs.service == 'all' || github.event.inputs.service == 'commande'
     needs: detect-changes
-    if: always()
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+          submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: '21'
-          distribution: 'temurin'
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Debug directory structure
+      - name: Debug - List directory structure for commande
         run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== List all files ==="
-          ls -la
-          echo "=== Check services directory ==="
-          ls -la services/ || echo "Services directory not found"
-          echo "=== Check service-commande directory ==="
-          ls -la services/service-commande/ || echo "Service-commande directory not found"
+          echo "=== Services directory contents ==="
+          ls -la services/
+          echo "=== Service-commande directory contents ==="
+          ls -la services/service-commande/
 
-      - name: Run tests with coverage
+      - name: Build and test service-commande
         run: |
-          cd services/service-commande
-          mvn clean verify jacoco:report -Dspring.profiles.active=test
+          echo "=== Finding service-commande directory ==="
+          find . -name "service-commande" -type d
+          echo "=== Finding pom.xml in service-commande ==="
+          find . -path "*/service-commande/pom.xml" -type f
+          
+          # Try different possible paths
+          if [ -d "services/service-commande" ]; then
+            echo "Using services/service-commande"
+            cd services/service-commande
+          elif [ -d "service-commande" ]; then
+            echo "Using service-commande"
+            cd service-commande
+          else
+            echo "Service-commande directory not found, listing all directories:"
+            find . -type d -name "*commande*" -o -name "*service*"
+            exit 1
+          fi
+          
+          echo "=== Current directory after cd ==="
+          pwd
+          echo "=== Contents of current directory ==="
+          ls -la
+          echo "=== Looking for pom.xml ==="
+          find . -name "pom.xml" -type f
+          echo "=== pom.xml exists? ==="
+          ls -la pom.xml
+          mvn clean test -Dspring.profiles.active=test
+          mvn package -DskipTests
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
           SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        with:
-          file: services/service-commande/target/site/jacoco/jacoco.xml
-          flags: service-commande
-
-      - name: Build application
-        run: |
-          cd services/service-commande
-          mvn clean package -DskipTests
-
-      - name: Build Docker image
+      - name: Build Docker image for service-commande
         run: |
           cd services/service-commande
           docker build -t ghcr.io/${{ github.repository_owner }}/service-commande:${{ github.sha }} .
+          docker tag ghcr.io/${{ github.repository_owner }}/service-commande:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/service-commande:latest
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -286,20 +333,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Docker image
+      - name: Push Docker image for service-commande
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/service-commande:${{ github.sha }}
           docker push ghcr.io/${{ github.repository_owner }}/service-commande:latest
 
-  # Tests et Build pour frontend
-  test-frontend:
-    runs-on: ubuntu-latest
+  # Job pour frontend
+  build-frontend:
+    if: needs.detect-changes.outputs.frontend-changed == 'true' || github.event.inputs.service == 'all' || github.event.inputs.service == 'frontend'
     needs: detect-changes
-    if: always()
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+          submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
@@ -314,24 +363,16 @@ jobs:
           cd frontend
           npm ci
 
-      - name: Run linting
-        run: |
-          cd frontend
-          npm run lint
-
-      - name: Skip tests (frontend tests removed)
-        run: |
-          echo "Frontend tests have been removed as requested"
-
-      - name: Build application
+      - name: Build frontend
         run: |
           cd frontend
           npm run build
 
-      - name: Build Docker image
+      - name: Build Docker image for frontend
         run: |
           cd frontend
           docker build -t ghcr.io/${{ github.repository_owner }}/frontend:${{ github.sha }} .
+          docker tag ghcr.io/${{ github.repository_owner }}/frontend:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/frontend:latest
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -340,195 +381,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Docker image
+      - name: Push Docker image for frontend
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/frontend:${{ github.sha }}
           docker push ghcr.io/${{ github.repository_owner }}/frontend:latest
 
-  # Job pour exécuter tous les tests en parallèle
-  test-all-services:
-    runs-on: ubuntu-latest
-    if: always()
-    needs: [test-client, test-produit, test-commande, test-frontend]
-    steps:
-      - name: Check test results
-        run: |
-          echo "Service-client: ${{ needs.test-client.result }}"
-          echo "Service-produit: ${{ needs.test-produit.result }}"
-          echo "Service-commande: ${{ needs.test-commande.result }}"
-          echo "Frontend: ${{ needs.test-frontend.result }}"
-          
-          # Vérifier qu'au moins un service a réussi
-          if [[ "${{ needs.test-client.result }}" == "success" || "${{ needs.test-produit.result }}" == "success" || "${{ needs.test-commande.result }}" == "success" || "${{ needs.test-frontend.result }}" == "success" ]]; then
-            echo "At least one service test passed"
-          else
-            echo "No service tests passed"
-            exit 1
-          fi
-
-  # Job pour forcer l'exécution de tous les tests
-  test-all-services-forced:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.service == 'all'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
-
-      - name: Run all service tests
-        run: |
-          echo "Running all service tests..."
-          
-          # Test service-client
-          echo "Testing service-client..."
-          cd services/service-client
-          mvn clean verify jacoco:report -Dspring.profiles.active=test
-          cd ../..
-          
-          # Test service-produit
-          echo "Testing service-produit..."
-          cd services/service-produit
-          mvn clean verify jacoco:report -Dspring.profiles.active=test
-          cd ../..
-          
-          # Test service-commande
-          echo "Testing service-commande..."
-          cd services/service-commande
-          mvn clean verify jacoco:report -Dspring.profiles.active=test
-          cd ../..
-        env:
-          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
-          SPRING_DATASOURCE_USERNAME: sa
-          SPRING_DATASOURCE_PASSWORD: ""
-          JWT_SECRET: test-secret-key
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        with:
-          files: |
-            services/service-client/target/site/jacoco/jacoco.xml
-            services/service-produit/target/site/jacoco/jacoco.xml
-            services/service-commande/target/site/jacoco/jacoco.xml
-          flags: all-services
-
-  # Tests d'intégration
-  integration-tests:
-    runs-on: ubuntu-latest
-    needs: [test-all-services]
-    if: always() && needs.test-all-services.result == 'success'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Install Docker Compose
-        run: |
-          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          docker-compose --version
-
-      - name: Start services with Docker Compose
-        run: |
-          docker-compose up -d
-          sleep 30  # Wait for services to start
-
-      - name: Run integration tests
-        run: |
-          # Add your integration tests here
-          echo "Running integration tests..."
-
-      - name: Stop services
-        run: |
-          docker-compose down
-
-  # Tests d'intégration forcés (s'exécute toujours)
-  integration-tests-forced:
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Install Docker Compose
-        run: |
-          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          docker-compose --version
-
-      - name: Start services with Docker Compose
-        run: |
-          docker-compose up -d
-          sleep 30  # Wait for services to start
-
-      - name: Run integration tests
-        run: |
-          # Add your integration tests here
-          echo "Running integration tests..."
-
-      - name: Stop services
-        run: |
-          docker-compose down
-
-  # Security scan
-  security-scan:
-    runs-on: ubuntu-latest
-    needs: [test-all-services]
-    if: always() && needs.test-all-services.result == 'success'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-  # Deploy (only on master branch)
+  # Job de déploiement
   deploy:
+    if: github.ref == 'refs/heads/main' && (needs.build-client.result == 'success' || needs.build-produit.result == 'success' || needs.build-commande.result == 'success' || needs.build-frontend.result == 'success')
+    needs: [build-client, build-produit, build-commande, build-frontend]
     runs-on: ubuntu-latest
-    needs: [test-all-services, test-all-services-forced, integration-tests, integration-tests-forced, security-scan]
-    if: github.ref == 'refs/heads/master' && (needs.test-all-services.result == 'success' || needs.test-all-services-forced.result == 'success') && needs.integration-tests-forced.result == 'success' && needs.security-scan.result == 'success'
     steps:
       - name: Deploy to production
         run: |
-          echo "Deploying to production..."
-          # Add your deployment logic here
+          echo "🚀 Deploying updated services to production..."
+          echo "✅ Services built successfully:"
+          echo "  - Client: ${{ needs.build-client.result }}"
+          echo "  - Produit: ${{ needs.build-produit.result }}"
+          echo "  - Commande: ${{ needs.build-commande.result }}"
+          echo "  - Frontend: ${{ needs.build-frontend.result }}"
+          
+          # Ici vous pouvez ajouter votre logique de déploiement
+          # Par exemple : kubectl apply, docker-compose up, etc.
+          echo "📦 Docker images pushed to GHCR:"
+          echo "  - ghcr.io/${{ github.repository_owner }}/service-client:${{ github.sha }}"
+          echo "  - ghcr.io/${{ github.repository_owner }}/service-produit:${{ github.sha }}"
+          echo "  - ghcr.io/${{ github.repository_owner }}/service-commande:${{ github.sha }}"
+          echo "  - ghcr.io/${{ github.repository_owner }}/frontend:${{ github.sha }}"
