@@ -110,7 +110,7 @@ jobs:
           echo "=== Check if services exist ==="
           ls -la | grep -i service || echo "No service directories found"
 
-      - name: Build and test service-client
+      - name: Run tests with coverage for service-client
         run: |
           echo "=== Finding service-client directory ==="
           find . -name "service-client" -type d
@@ -138,13 +138,25 @@ jobs:
           find . -name "pom.xml" -type f
           echo "=== pom.xml exists? ==="
           ls -la pom.xml
-          mvn clean test -Dspring.profiles.active=test
-          mvn package -DskipTests
+          
+          # Run tests with coverage
+          mvn clean verify jacoco:report -Dspring.profiles.active=test
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
           SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
+
+      - name: Upload coverage reports for service-client
+        uses: codecov/codecov-action@v4
+        with:
+          file: services/service-client/target/site/jacoco/jacoco.xml
+          flags: service-client
+
+      - name: Build service-client
+        run: |
+          cd services/service-client
+          mvn package -DskipTests
 
       - name: Build Docker image for service-client
         run: |
@@ -197,7 +209,7 @@ jobs:
           echo "=== Service-produit directory contents ==="
           ls -la services/service-produit/
 
-      - name: Build and test service-produit
+      - name: Run tests with coverage for service-produit
         run: |
           echo "=== Finding service-produit directory ==="
           find . -name "service-produit" -type d
@@ -225,13 +237,25 @@ jobs:
           find . -name "pom.xml" -type f
           echo "=== pom.xml exists? ==="
           ls -la pom.xml
-          mvn clean test -Dspring.profiles.active=test
-          mvn package -DskipTests
+          
+          # Run tests with coverage
+          mvn clean verify jacoco:report -Dspring.profiles.active=test
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
           SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
+
+      - name: Upload coverage reports for service-produit
+        uses: codecov/codecov-action@v4
+        with:
+          file: services/service-produit/target/site/jacoco/jacoco.xml
+          flags: service-produit
+
+      - name: Build service-produit
+        run: |
+          cd services/service-produit
+          mvn package -DskipTests
 
       - name: Build Docker image for service-produit
         run: |
@@ -284,7 +308,7 @@ jobs:
           echo "=== Service-commande directory contents ==="
           ls -la services/service-commande/
 
-      - name: Build and test service-commande
+      - name: Run tests with coverage for service-commande
         run: |
           echo "=== Finding service-commande directory ==="
           find . -name "service-commande" -type d
@@ -312,13 +336,25 @@ jobs:
           find . -name "pom.xml" -type f
           echo "=== pom.xml exists? ==="
           ls -la pom.xml
-          mvn clean test -Dspring.profiles.active=test
-          mvn package -DskipTests
+          
+          # Run tests with coverage
+          mvn clean verify jacoco:report -Dspring.profiles.active=test
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_USERNAME: sa
           SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: test-secret-key
+
+      - name: Upload coverage reports for service-commande
+        uses: codecov/codecov-action@v4
+        with:
+          file: services/service-commande/target/site/jacoco/jacoco.xml
+          flags: service-commande
+
+      - name: Build service-commande
+        run: |
+          cd services/service-commande
+          mvn package -DskipTests
 
       - name: Build Docker image for service-commande
         run: |
