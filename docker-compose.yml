@@ -262,11 +262,33 @@ services:
     restart: unless-stopped
     networks: [mspr-net]
 
+  # SonarQube
+  sonarqube:
+    image: sonarqube:10.4-community
+    container_name: sonarqube_mspr
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    restart: unless-stopped
+    networks: [mspr-net]
+
 volumes:
   mysql_data_client:
   mysql_data_produit:
   mysql_data_commande:
   rabbitmq_data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
 
 networks:
   mspr-net:
