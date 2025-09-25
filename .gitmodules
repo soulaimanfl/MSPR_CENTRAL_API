@@ -10,3 +10,4 @@
 [submodule "frontend"]
 	path = frontend
 	url = https://github.com/kuetcheal/webshop_mspr.git
+	branch = develop
