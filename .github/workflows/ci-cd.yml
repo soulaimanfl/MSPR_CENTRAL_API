@@ -74,6 +74,17 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Debug directory structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== List all files ==="
+          ls -la
+          echo "=== Check services directory ==="
+          ls -la services/ || echo "Services directory not found"
+          echo "=== Check service-client directory ==="
+          ls -la services/service-client/ || echo "Service-client directory not found"
+
       - name: Run tests with coverage
         run: |
           cd services/service-client
@@ -135,6 +146,17 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
+
+      - name: Debug directory structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== List all files ==="
+          ls -la
+          echo "=== Check services directory ==="
+          ls -la services/ || echo "Services directory not found"
+          echo "=== Check service-produit directory ==="
+          ls -la services/service-produit/ || echo "Service-produit directory not found"
 
       - name: Run tests with coverage
         run: |
@@ -198,6 +220,17 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Debug directory structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== List all files ==="
+          ls -la
+          echo "=== Check services directory ==="
+          ls -la services/ || echo "Services directory not found"
+          echo "=== Check service-commande directory ==="
+          ls -la services/service-commande/ || echo "Service-commande directory not found"
+
       - name: Run tests with coverage
         run: |
           cd services/service-commande
@@ -252,7 +285,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install dependencies
         run: |
