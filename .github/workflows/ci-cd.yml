@@ -74,6 +74,24 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Clone submodules manually
+        run: |
+          echo "=== Cloning submodules manually ==="
+          # Cloner les submodules depuis les repositories originaux
+          git clone https://github.com/kuetcheal/service_client.git services/service-client-temp
+          git clone https://github.com/kuetcheal/service_produit.git services/service-produit-temp
+          git clone https://github.com/kuetcheal/service_commande.git services/service-commande-temp
+          git clone https://github.com/kuetcheal/webshop_mspr.git frontend-temp
+          
+          # Copier les fichiers vers les bons répertoires
+          cp -r services/service-client-temp/* services/service-client/ || echo "Service-client copy failed"
+          cp -r services/service-produit-temp/* services/service-produit/ || echo "Service-produit copy failed"
+          cp -r services/service-commande-temp/* services/service-commande/ || echo "Service-commande copy failed"
+          cp -r frontend-temp/* frontend/ || echo "Frontend copy failed"
+          
+          # Nettoyer les dossiers temporaires
+          rm -rf services/service-client-temp services/service-produit-temp services/service-commande-temp frontend-temp
+
       - name: Debug directory structure
         run: |
           echo "=== Current directory ==="
